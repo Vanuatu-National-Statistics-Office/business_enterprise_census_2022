@@ -62,15 +62,24 @@ other_cost <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_A
 other_invest <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "other_invest.tab"))
 ref_yearDetails <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "ref_yearDetails.tab"))
 register_id <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "register_id.tab"))
-
+errors <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "interview__errors.tab"))
 #Write imported data to SQLite database
 
 dbWriteTable(mydb, "main", main, overwrite = TRUE)
-
+dbWriteTable(mydb, "exp_details", exp_details, overwrite=TRUE)
+dbWriteTable(mydb, "capital_goods", capital_goods, overwrite=TRUE)
+dbWriteTable(mydb, "exp_range", exp_range, overwrite=TRUE)
+dbWriteTable(mydb, "finaAcess_roser", finaAcess_roser, overwrite=TRUE)
+dbWriteTable(mydb, "info_activities", info_activities, overwrite=TRUE)
+dbWriteTable(mydb, "info_other_business", info_other_business, overwrite=TRUE)
+dbWriteTable(mydb, "mobMoney_info", mobMoney_info, overwrite=TRUE)
+dbWriteTable(mydb, "other_cost", other_cost, overwrite=TRUE)
+dbWriteTable(mydb, "other_invest", other_invest, overwrite=TRUE)
+dbWriteTable(mydb, "ref_yearDetails", ref_yearDetails, overwrite=TRUE)
+dbWriteTable(mydb, "register_id", register_id, overwrite=TRUE)
+dbWriteTable(mydb, "errors", errors, overwrite = TRUE)
 
 ```
-
-
 
 Column {data-width=650}
 -----------------------------------------------------------------------
@@ -89,12 +98,19 @@ p
 
 ```
 
+
 Column {data-width=350}
 -----------------------------------------------------------------------
 
 ### Chart B
 
 ```{r}
+
+errors_detect <- dbGetQuery(mydb, "SELECT variable, COUNT(interview__key) AS total FROM errors GROUP BY variable ")
+
+p<-ggplot(errors_detect, aes(x=variable, y=total, fill=total)) +
+  geom_bar(stat="identity")+theme_minimal()
+p
 
 ```
 
