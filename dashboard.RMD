@@ -1,0 +1,106 @@
+---
+title: "Business Enterprise Census 2022"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(dplyr) #Data manipulation
+library(readxl) #read in Excel files
+library(RSQLite) #SQLite data connection
+library(haven)
+library(susoapi)
+library(ggplot2)
+```
+
+
+```{r API connection to the server, message=FALSE, warning=FALSE, echo=FALSE, results=FALSE, comment=FALSE}
+setwd(paste0(getwd()))
+mydb <- dbConnect(RSQLite::SQLite(), "data/secure/sqlite/bec2022.sqlite")
+
+server_name <- Sys.getenv("SUSO_SERVER")
+server_user <- Sys.getenv("BEC_USER")
+server_password <- Sys.getenv("BEC_PASSWORD")
+
+set_credentials(
+  server = server_name,
+  user = server_user,
+  password = server_password
+)
+
+all_questionnaires <- get_questionnaires(workspace = "bec")
+
+start_export(
+  qnr_id = "bf962319d179467babb153516f46018b$1",
+  export_type = "Tabular",
+  interview_status = "All",
+  include_meta = TRUE,
+  workspace = "bec"
+) -> started_job_id
+
+get_export_job_details(job_id = started_job_id, workspace = "bec")
+
+get_export_file(
+  job_id = started_job_id,
+  path = "data/secure/",
+  workspace = "bec",
+)
+
+#Read data into R from downloaded zip file
+main <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "business_census2022.tab"))
+capital_goods <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "capital_goods.tab"))
+exp_details <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "exp_details.tab"))
+exp_range <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "exp_range.tab"))
+finaAcess_roser <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "finaAcess_roser.tab"))
+info_activities <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "info_activities.tab"))
+info_other_business <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "info_other_business.tab"))
+mobMoney_info <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "mobMoney_info.tab"))
+other_cost <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "other_cost.tab"))
+other_invest <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "other_invest.tab"))
+ref_yearDetails <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "ref_yearDetails.tab"))
+register_id <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "register_id.tab"))
+
+#Write imported data to SQLite database
+
+dbWriteTable(mydb, "main", main, overwrite = TRUE)
+
+
+```
+
+
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### Chart A
+
+```{r}
+province <- read.csv("data/open/province.csv")
+prov <- dbGetQuery(mydb, "SELECT province, COUNT(interview__key) AS total FROM main WHERE province > 0 GROUP BY province")
+
+prov_results <- merge(prov, province, by = "province")
+
+p<-ggplot(prov_results, aes(x=province_desc, y=total, fill=total)) +
+  geom_bar(stat="identity")+theme_minimal()
+p
+
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Chart B
+
+```{r}
+
+```
+
+### Chart C
+
+```{r}
+
+```
+
