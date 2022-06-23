@@ -1,13 +1,3 @@
----
-title: "BEC 2022"
-output: 
-  flexdashboard::flex_dashboard:
-    orientation: columns
-    vertical_layout: scroll
-    bootswatch: cosmo
----
-
-```{r setup, include=FALSE}
 library(flexdashboard)
 library(dplyr) #Data manipulation
 library(readxl) #read in Excel files
@@ -15,11 +5,7 @@ library(RSQLite) #SQLite data connection
 library(haven)
 library(susoapi)
 library(ggplot2)
-library(shiny)
-```
 
-
-```{r API connection to the server, message=FALSE, warning=FALSE, echo=FALSE, results=FALSE, comment=FALSE}
 setwd(paste0(getwd()))
 mydb <- dbConnect(RSQLite::SQLite(), "data/secure/sqlite/bec2022.sqlite")
 
@@ -81,54 +67,7 @@ dbWriteTable(mydb, "other_invest", other_invest, overwrite=TRUE)
 dbWriteTable(mydb, "ref_yearDetails", ref_yearDetails, overwrite=TRUE)
 dbWriteTable(mydb, "register_id", register_id, overwrite=TRUE)
 dbWriteTable(mydb, "errors", errors, overwrite = TRUE)
-dbWriteTable(mydb, "interview_actions", interview_actions, overwrite=TRUE)
-
-```
-
-Dashboard
-=======================================================================
-
-
-Column {data-width=650}
------------------------------------------------------------------------
-
-### Chart A Collections by Province
-
-```{r}
-
-error_chk <- dbGetQuery(mydb, "SELECT interview__key, COUNT(interview__key) as totError FROM errors GROUP BY interview__key")
-interviewer <- interview_actions %>% distinct(interview__key, originator, .keep_all = TRUE)
-
-interviewer_error <- merge(error_chk, interviewer, by = "interview__key")
-
-p<-ggplot(interviewer_error, aes(x=originator, y=totError, fill=totError)) +
-  geom_bar(stat="identity")+theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1))
-p
-
-```
-
-
-Column {data-width=350}
------------------------------------------------------------------------
-
-### Chart B: Distribution of Errors by Variable
-
-```{r}
-
-errors_detect <- dbGetQuery(mydb, "SELECT variable, COUNT(interview__key) AS total FROM errors GROUP BY variable ")
-
-p<-ggplot(errors_detect, aes(x=variable, y=total, fill=total)) +
-  geom_bar(stat="identity")+theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1))
-p
-
-```
-
-### Chart C: Distribution of Errors by Interviewer
-
-```{r}
-
+dbWriteTable(mydb, "interview_actions", interview_actions, overwrite = TRUE)
 
 province <- read.csv("data/open/province.csv")
 prov <- dbGetQuery(mydb, "SELECT province, COUNT(interview__key) AS total FROM main WHERE province > 0 GROUP BY province")
@@ -136,54 +75,18 @@ prov <- dbGetQuery(mydb, "SELECT province, COUNT(interview__key) AS total FROM m
 prov_results <- merge(prov, province, by = "province")
 
 p<-ggplot(prov_results, aes(x=province_desc, y=total, fill=total)) +
-  geom_bar(stat="identity")+theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1))
+  geom_bar(stat="identity")+theme_minimal()
 p
 
+errors_detect <- dbGetQuery(mydb, "SELECT variable, COUNT(interview__key) AS total FROM errors GROUP BY variable ")
 
-```
+p<-ggplot(errors_detect, aes(x=variable, y=total, fill=total)) +
+  geom_bar(stat="identity")+theme_minimal()
+p
 
-Industry Reporting
-======================================================================
-
-### Error Reporting by Variable
-
-```{r}
-
-
-```
-
-
-Error Reporting Page
-=======================================================================
-
-Column {.sidebar}
-------------------------------------------------------------------
-```{r}
-
-
-```
-
-
-column
--------------------------------------------------------------------
-### Display 
-
-```{r}
+interviewer_errors <- interview_actions(c("interview__key", "originator"))
 
 
 
-```
-
-
-
-
-
-User actions Reporting
-=======================================================================
-
-```{r Disconnect database}
 
 dbDisconnect(mydb)
-
-```
