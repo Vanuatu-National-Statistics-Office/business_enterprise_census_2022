@@ -50,10 +50,7 @@ data/secure/sqlite/*
 *.docx
 
 # Keep the powerpoint for mapping analytical pipeline
-!images/MappingTheProcess_15-12-20.pptx
-
-# Keep the monthly report styles template
-!R/MonthlyReportAndTables/styles_reference.docx
+!image/MappingTheProcess_29-06-22.pptx
 
 # Ignore files in the outputs folder for the moment
 outputs/*
