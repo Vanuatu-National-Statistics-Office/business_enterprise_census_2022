@@ -54,7 +54,8 @@ get_export_file(
 
 ```
 
-```{r}
+
+```{r Read tabfiles from downloaded zipped file}
 #Read data into R from downloaded zip file
 main <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "business_census2022.tab"))
 capital_goods <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "capital_goods.tab"))
@@ -70,6 +71,17 @@ ref_yearDetails <- read_delim(unzip("data/secure/business_census2022_2_Tabular_A
 register_id <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "register_id.tab"))
 errors <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "interview__errors.tab"))
 interview_actions <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "interview__actions.tab"))
+
+```
+
+```{r Remove temporary files}
+#Remove temporary files
+file.remove(list.files(pattern = "*.tab"))
+
+```
+
+
+```{r Write downloaded tab files into SQLite database}
 #Write imported data to SQLite database
 
 dbWriteTable(mydb, "main", main, overwrite = TRUE)
