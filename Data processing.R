@@ -6,7 +6,9 @@ library(haven)
 library(susoapi)
 library(ggplot2)
 
-setwd(paste0(getwd()))
+repository <- file.path(dirname(rstudioapi::getSourceEditorContext()$path))
+setwd(repository)
+
 mydb <- dbConnect(RSQLite::SQLite(), "data/secure/sqlite/bec2022.sqlite")
 
 server_name <- Sys.getenv("SUSO_SERVER")
@@ -22,7 +24,7 @@ set_credentials(
 all_questionnaires <- get_questionnaires(workspace = "bec")
 
 start_export(
-  qnr_id = "bf962319d179467babb153516f46018b$1",
+  qnr_id = "bf962319d179467babb153516f46018b$2",
   export_type = "Tabular",
   interview_status = "All",
   include_meta = TRUE,

@@ -16,6 +16,7 @@ library(haven)
 library(susoapi)
 library(ggplot2)
 library(shiny)
+library(readr)
 ```
 
 
@@ -36,7 +37,7 @@ set_credentials(
 all_questionnaires <- get_questionnaires(workspace = "bec")
 
 start_export(
-  qnr_id = "bf962319d179467babb153516f46018b$1",
+  qnr_id = "bf962319d179467babb153516f46018b$2",
   export_type = "Tabular",
   interview_status = "All",
   include_meta = TRUE,
@@ -51,21 +52,24 @@ get_export_file(
   workspace = "bec",
 )
 
+```
+
+```{r}
 #Read data into R from downloaded zip file
-main <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "business_census2022.tab"))
-capital_goods <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "capital_goods.tab"))
-exp_details <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "exp_details.tab"))
-exp_range <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "exp_range.tab"))
-finaAcess_roser <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "finaAcess_roser.tab"))
-info_activities <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "info_activities.tab"))
-info_other_business <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "info_other_business.tab"))
-mobMoney_info <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "mobMoney_info.tab"))
-other_cost <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "other_cost.tab"))
-other_invest <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "other_invest.tab"))
-ref_yearDetails <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "ref_yearDetails.tab"))
-register_id <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "register_id.tab"))
-errors <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "interview__errors.tab"))
-interview_actions <- readr::read_delim(unz("data/secure/business_census2022_1_Tabular_All.zip", "interview__actions.tab"))
+main <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "business_census2022.tab"))
+capital_goods <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "capital_goods.tab"))
+exp_details <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "exp_details.tab"))
+exp_range <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "exp_range.tab"))
+finaAcess_roser <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "finaAcess_roser.tab"))
+info_activities <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "info_activities.tab"))
+info_other_business <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "info_other_business.tab"))
+mobMoney_info <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "mobMoney_info.tab"))
+other_cost <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "other_cost.tab"))
+other_invest <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "other_invest.tab"))
+ref_yearDetails <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "ref_yearDetails.tab"))
+register_id <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "register_id.tab"))
+errors <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "interview__errors.tab"))
+interview_actions <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "interview__actions.tab"))
 #Write imported data to SQLite database
 
 dbWriteTable(mydb, "main", main, overwrite = TRUE)
