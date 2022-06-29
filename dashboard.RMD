@@ -74,7 +74,7 @@ interview_actions <- read_delim(unzip("data/secure/business_census2022_2_Tabular
 
 ```
 
-```{r Remove temporary files}
+```{r Remove temporary files, comment=FALSE, results=FALSE}
 #Remove temporary files
 file.remove(list.files(pattern = "*.tab"))
 
