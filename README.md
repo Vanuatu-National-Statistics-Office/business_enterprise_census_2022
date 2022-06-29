@@ -2,9 +2,12 @@
 
 <br><br><br><br>
 <hr>
+
 # Data processing of the Business Enterprise Census&nbsp;
+
 <hr>
 <br><br><br><br>
+
 ![The new Reproducible Analytical Pipeline](image/MappingTheProcess.jpg)
 
 
