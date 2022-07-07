@@ -15,6 +15,7 @@ repository <- file.path(dirname(rstudioapi::getSourceEditorContext()$path))
 setwd(repository)
 
 mydb <- dbConnect(RSQLite::SQLite(), "data/secure/sqlite/bec2022.sqlite")
+con <- dbConnect(RSQLite::SQLite(), "data/secure/sqlite/bec2022_monitor.sqlite")
 
 #### API Configuration ####
 # Assign Credentials to the variables (System Variables)
@@ -26,16 +27,16 @@ server_password <- Sys.getenv("BEC_PASSWORD")
 set_credentials(
   server = server_name,
   user = server_user,
-  password = server_password,
-  workspace = "bec"
+  password = server_password
+  #workspace = "bec"
 )
 
 #Retrieve all questions being assigned to the BEC_USER
 all_questionnaires <- get_questionnaires(workspace = "bec")
 
-#create JOB Id for purpose of exporting data from the server
+#create JOB Id for purpose of exporting all data from the server
 start_export(
-  qnr_id = "bf962319d179467babb153516f46018b$2",
+  qnr_id = all_questionnaires$questionnaireId,
   export_type = "Tabular",
   interview_status = "All",
   include_meta = TRUE,
@@ -113,7 +114,7 @@ main = select(main, -35:-49)
 
 ## Load Look up Tables from bec_classification.xlsx (directory: data/open)
 # Data is read from a single spreadsheet that has multiples sheets# 
-ref_letter <- read_excel("data/open/bec_classification.xlsx", sheet = "ref_letter") # Reference letter of assigned teams
+ref_letter <- read_excel("data/open/bec_classification.xlsx", sheet = "Reference_Letter") # Reference letter of assigned teams
 position <- read_excel("data/open/bec_classification.xlsx", sheet = "position") # Position of Interviewee
 owner_sex <- read_excel("data/open/bec_classification.xlsx", sheet = "owner_sex") # Sex of Owner
 owner_character <- read_excel("data/open/bec_classification.xlsx", sheet = "owner_character") # Characteristics of owner
@@ -209,7 +210,7 @@ dbWriteTable(mydb, "rank_of_services", rank_of_services, overwrite=TRUE) #F4b: R
 
 
 province <- read.csv("data/open/province.csv")
-prov <- dbGetQuery(mydb, "SELECT province, COUNT(interview__key) AS total FROM main WHERE province > 0 GROUP BY province")
+prov <- dbGetQuery(mydb, "SELECT province, COUNT(id) AS total FROM main WHERE province > 0 GROUP BY province")
 
 prov_results <- merge(prov, province, by = "province")
 
@@ -217,15 +218,14 @@ p<-ggplot(prov_results, aes(x=province_desc, y=total, fill=total)) +
   geom_bar(stat="identity")+theme_minimal()
 p
 
-errors_detect <- dbGetQuery(mydb, "SELECT variable, COUNT(interview__key) AS total FROM errors GROUP BY variable ")
+errors_detect <- dbGetQuery(mydb, "SELECT variable, COUNT(id) AS total FROM errors GROUP BY variable ")
 
 p<-ggplot(errors_detect, aes(x=variable, y=total, fill=total)) +
   geom_bar(stat="identity")+theme_minimal()
 p
 
-interviewer_errors <- interview_actions(c("interview__key", "originator"))
-
-
+myvars <- c("interview__key", "originator", "action")
+interviewActions <- interview_actions[myvars]
 
 
 dbDisconnect(mydb)

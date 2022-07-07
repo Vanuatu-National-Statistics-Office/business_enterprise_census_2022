@@ -19,87 +19,16 @@ library(shiny)
 library(readr)
 ```
 
+```{r Connect to the SQLite database}
 
-```{r API connection to the server, message=FALSE, warning=FALSE, echo=FALSE, results=FALSE, comment=FALSE}
-setwd(paste0(getwd()))
-mydb <- dbConnect(RSQLite::SQLite(), "data/secure/sqlite/bec2022.sqlite")
+repository <- file.path(dirname(rstudioapi::getSourceEditorContext()$path))
+setwd(repository)
 
-server_name <- Sys.getenv("SUSO_SERVER")
-server_user <- Sys.getenv("BEC_USER")
-server_password <- Sys.getenv("BEC_PASSWORD")
-
-set_credentials(
-  server = server_name,
-  user = server_user,
-  password = server_password
-)
-
-all_questionnaires <- get_questionnaires(workspace = "bec")
-
-start_export(
-  qnr_id = "bf962319d179467babb153516f46018b$2",
-  export_type = "Tabular",
-  interview_status = "All",
-  include_meta = TRUE,
-  workspace = "bec"
-) -> started_job_id
-
-get_export_job_details(job_id = started_job_id, workspace = "bec")
-
-get_export_file(
-  job_id = started_job_id,
-  path = "data/secure/",
-  workspace = "bec",
-)
+conn <- dbConnect(RSQLite::SQLite(), "data/secure/sqlite/bec2022_monitor.sqlite")
 
 ```
 
 
-```{r Read tabfiles from downloaded zipped file}
-#Read data into R from downloaded zip file
-main <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "business_census2022.tab"))
-capital_goods <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "capital_goods.tab"))
-exp_details <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "exp_details.tab"))
-exp_range <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "exp_range.tab"))
-finaAcess_roser <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "finaAcess_roser.tab"))
-info_activities <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "info_activities.tab"))
-info_other_business <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "info_other_business.tab"))
-mobMoney_info <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "mobMoney_info.tab"))
-other_cost <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "other_cost.tab"))
-other_invest <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "other_invest.tab"))
-ref_yearDetails <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "ref_yearDetails.tab"))
-register_id <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "register_id.tab"))
-errors <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "interview__errors.tab"))
-interview_actions <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "interview__actions.tab"))
-
-```
-
-```{r Remove temporary files, comment=FALSE, results=FALSE}
-#Remove temporary files
-file.remove(list.files(pattern = "*.tab"))
-
-```
-
-
-```{r Write downloaded tab files into SQLite database}
-#Write imported data to SQLite database
-
-dbWriteTable(mydb, "main", main, overwrite = TRUE)
-dbWriteTable(mydb, "exp_details", exp_details, overwrite=TRUE)
-dbWriteTable(mydb, "capital_goods", capital_goods, overwrite=TRUE)
-dbWriteTable(mydb, "exp_range", exp_range, overwrite=TRUE)
-dbWriteTable(mydb, "finaAcess_roser", finaAcess_roser, overwrite=TRUE)
-dbWriteTable(mydb, "info_activities", info_activities, overwrite=TRUE)
-dbWriteTable(mydb, "info_other_business", info_other_business, overwrite=TRUE)
-dbWriteTable(mydb, "mobMoney_info", mobMoney_info, overwrite=TRUE)
-dbWriteTable(mydb, "other_cost", other_cost, overwrite=TRUE)
-dbWriteTable(mydb, "other_invest", other_invest, overwrite=TRUE)
-dbWriteTable(mydb, "ref_yearDetails", ref_yearDetails, overwrite=TRUE)
-dbWriteTable(mydb, "register_id", register_id, overwrite=TRUE)
-dbWriteTable(mydb, "errors", errors, overwrite = TRUE)
-dbWriteTable(mydb, "interview_actions", interview_actions, overwrite=TRUE)
-
-```
 
 Dashboard
 =======================================================================
@@ -112,7 +41,7 @@ Column {data-width=650}
 
 ```{r}
 
-error_chk <- dbGetQuery(mydb, "SELECT interview__key, COUNT(interview__key) as totError FROM errors GROUP BY interview__key")
+error_chk <- dbGetQuery(conn, "SELECT interview__key, COUNT(interview__key) as totError FROM errors GROUP BY interview__key")
 interviewer <- interview_actions %>% distinct(interview__key, originator, .keep_all = TRUE)
 
 interviewer_error <- merge(error_chk, interviewer, by = "interview__key")
@@ -132,7 +61,7 @@ Column {data-width=350}
 
 ```{r}
 
-errors_detect <- dbGetQuery(mydb, "SELECT variable, COUNT(interview__key) AS total FROM errors GROUP BY variable ")
+errors_detect <- dbGetQuery(conn, "SELECT variable, COUNT(interview__key) AS total FROM errors GROUP BY variable ")
 
 p<-ggplot(errors_detect, aes(x=variable, y=total, fill=total)) +
   geom_bar(stat="identity")+theme_minimal() +
@@ -147,7 +76,7 @@ p
 
 
 province <- read.csv("data/open/province.csv")
-prov <- dbGetQuery(mydb, "SELECT province, COUNT(interview__key) AS total FROM main WHERE province > 0 GROUP BY province")
+prov <- dbGetQuery(conn, "SELECT province, COUNT(interview__key) AS total FROM main WHERE province > 0 GROUP BY province")
 
 prov_results <- merge(prov, province, by = "province")
 
@@ -200,6 +129,6 @@ User actions Reporting
 
 ```{r Disconnect database}
 
-dbDisconnect(mydb)
+dbDisconnect(conn)
 
 ```
