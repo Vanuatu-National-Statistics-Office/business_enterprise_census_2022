@@ -10,6 +10,10 @@ library(devtools) # access to github
 #devtools::install_github("arthur-shaw/susoapi")
 library(susoapi) # R wrapper function for each Survey Solutions API endpoint
 library(readr) #  provide a fast and friendly way to read rectangular data
+#install.packages("zoo")
+library(zoo) # as.date() converting numeric date to normal day values
+
+options(scipen = 100, digits = 4) #prevent scientific notation
 
 repository <- file.path(dirname(rstudioapi::getSourceEditorContext()$path))
 setwd(repository)
@@ -70,6 +74,8 @@ register_id <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.z
 errors <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "interview__errors.tab"))
 interview_actions <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "interview__actions.tab"))
 
+
+
 ## Cleaning data frames read from server
 # 1. Renaming Field = interview__key in df to  id
 # 2. Rewrite df to mysqlite db = mydb
@@ -107,9 +113,84 @@ dbWriteTable(mydb, "interview_actions", interview_actions, overwrite=TRUE)
 ## Remove temporary files from main directory ##
 file.remove(list.files(pattern = "*.tab"))
 
-## Remove unwanted columns ##
-# Columns 35 to Column 49 - busiName_other__0 - busiName_other__14
-main = select(main, -35:-49)
+#### Cleaning: main Dataframe ####
+
+## 1. Remove unwanted columns ##
+main = select(main, -busiName_other__0:-busiName_other__14, -bus_activities__1:-bus_activities__21, -hhld_exp__1:-hhld_exp__7, -finance_source__1:-finance_source__7, -mobile_money_service__1:-mobile_money_service__4)
+ref_yearDetails = select(ref_yearDetails, -utilities_exp__1:-utilities_exp__7) # Roster repetition
+
+## 2. Change numeric datatypes to factor in all Categorical Fields
+main <- mutate_at(main, vars(ref_letter, ref_number, second_number, email, owner_sex, owner_character,
+                             second_email, postal, employee_sex, position, registered, ynRegistered, head_office, 
+                             otherUnits_acc, province, island, area_council, permit_number, legal_status, place_of_operation, 
+                             account_keeping, major_label_vansic,
+                             sub_major_label_vansic, minor_label_vansic, unit_label_vansic,
+                             vnsic_label_infovansic, imp_brdclose, imp_finstatus, imp_situation__1, 
+                             imp_situation__2, imp_situation__3, imp_situation__4, imp_situation__5,
+                             overcome_problem__1, overcome_problem__2, overcome_problem__3, overcome_problem__4, 
+                             overcome_problem__5, overcome_problem__6, overcome_problem__7, overcome_problem__8, 
+                             business_operate, operation_Noexp__1, operation_Noexp__2, operation_Noexp__3,
+                             operation_Noexp__4, operation_Noexp__5, same_business, informal__1,
+                             informal__2, informal__3, informal__4, informal__5, 
+                             major_Infolabel_vanisic, sub_majorlabel_info_vanisic, minor_label_infovansic, 
+                             unit_label_infovansic, vansic_label_infovansic, infor_paidEmp, unpaid_emp,
+                             hhld_business, excess_exp, business_develop, business_suceed, assisst_bank, 
+                             gov_assist, bank_services, bank_regUses, aware_bankService, info_bank, 
+                             insurance, insurance_poilcy, insurance_noPolicy, 
+                             g4_business_gps__Accuracy, g4_business_gps__Altitude, g4_business_gps__Latitude, g4_business_gps__Longitude), as.factor)
+
+## 3. Changing selected columns/fields above to integer for calculation purposes. E.g. Age, Day of Birth, Number of Business Establishments
+main <- mutate_at(main, vars(age, day_of_birth, business_locate, male_inforEmp, female_inforEmp, 
+                             paid_empTot, hrs_unpaidMale, unpaid_Maleemp, unpaid_Fememp, unpaid_empSize, 
+                             hrs_unpaidMale, hrs_unpaidFemale, average_hrs), as.integer)
+
+# Percentage of Expense of Utilities - exp_range data frame
+#exp_range <- mutate_at(exp_range, vars (exp_utilities), as.factor)
+exp_range <- mutate_at(exp_range, vars(exp_utilities), as.integer)
+
+# Converting utilities_cost column in exp_details data frame into integer
+#exp_details <- mutate_at(exp_details, vars (utilities_cost), as.factor)
+exp_details <- mutate_at(exp_details, vars(utilities_cost), as.integer)
+
+
+# Expense & Income
+
+ref_yearDetails <- mutate_at(ref_yearDetails, vars(wage_bill, income_resale, cost_resale, 
+                                                   income, expense, tot_paid_emp, sales_goods_services, local_emp, 
+                                                   foreign_emp, employee_comp, employee_comp, mang_vanmale, skill_vanmale, 
+                                                   unskil_vanmale, mang_vanfemale, skill_vanfemale, unskil_vanfemale, mang_formale, 
+                                                   skill_formale, unskil_formale, mang_forfemale, skill_forfemale, unskil_forfemale, 
+                                                   transport_cost, equip_cost, contract_opt, contract_cost, capital_exp, 
+                                                   cost_construct, capital_inc, inc_construct, rent_recieved, 
+                                                   rent_paid, interest_recieved, interest_paid, subsidy, tax_paid), as.integer)
+
+other_cost <- mutate_at(other_cost, vars(cost_otherExp), as.integer)
+other_invest <- mutate_at(other_invest, vars(cost_otherInvest), as.integer)
+capital_goods <- mutate_at(capital_goods, vars(cost_otherCapital), as.integer)
+
+
+## 4. Remove NAs from dataset and replace with blanks
+
+# Category set to Blank
+# Numeric -  set to 0s
+#main <- sapply(main, as.character)
+#main[is.na(main)] <- " "
+
+#library(tidyr)
+#main %>% 
+ # mutate_at(vars(major_label_vansic), replace_na, '')
+
+
+
+## Rewrite new amended df into database
+dbWriteTable(mydb, "main", main, overwrite=TRUE)
+dbWriteTable(mydb, "ref_yearDetails", ref_yearDetails, overwrite=TRUE)
+dbWriteTable(mydb, "exp_range", exp_range, overwrite=TRUE)
+dbWriteTable(mydb, "exp_details", exp_details, overwrite=TRUE)
+dbWriteTable(mydb, "other_cost", other_cost, overwrite=TRUE)
+dbWriteTable(mydb, "other_invest", other_invest, overwrite=TRUE)
+dbWriteTable(mydb, "capital_goods", capital_goods, overwrite=TRUE)
+
 
 ## Load Look up Tables from bec_classification.xlsx (directory: data/open)
 # Data is read from a single spreadsheet that has multiples sheets# 
@@ -151,6 +232,9 @@ hhld_exp <- read_excel("data/open/bec_classification.xlsx", sheet = "hhld_exp") 
 finance_source <- read_excel("data/open/bec_classification.xlsx", sheet = "finance_source") #F1.: Source of Finance
 mobile_money_service <- read_excel("data/open/bec_classification.xlsx", sheet = "mobile_money_service") #F4.: Mobile Money Services
 rank_of_services <- read_excel("data/open/bec_classification.xlsx", sheet = "rank_of_services") #F4b: Rank of Mobile Money Services
+interview_status <- read_excel("data/open/bec_classification.xlsx", sheet = "interview_status") #Lookup interview status for fieldwork monitoring
+enumerators <- read_excel("data/open/bec_classification.xlsx", sheet = "enumerators") #enumerators
+
 
 
 # Writing in new classification tables read from excel file - bec_classification.xlsx above to the database=mydb 
@@ -192,23 +276,333 @@ dbWriteTable(mydb, "hhld_exp", hhld_exp, overwrite=TRUE) #EI2: expenditure on th
 dbWriteTable(mydb, "finance_source", finance_source, overwrite=TRUE) #F1.: Source of Finance
 dbWriteTable(mydb, "mobile_money_service", mobile_money_service, overwrite=TRUE) #F4.: Mobile Money Services
 dbWriteTable(mydb, "rank_of_services", rank_of_services, overwrite=TRUE) #F4b: Rank of Mobile Money Services
+dbWriteTable(mydb, "interview_status", interview_status, overwrite=TRUE) #Lookup interview status for fieldwork monitoring
+dbWriteTable(mydb, "enumerators", enumerators, overwrite=TRUE) #Enumerators
+
+#### Fieldwork Monitoring ####
+fwm <- dbGetQuery(mydb, "Select main.id,
+                  interview_status.interview_status_desc,
+                  interview_actions.originator,
+                  interview_actions.responsible__name,
+                  enumerators.enumdesc,
+                  interview_actions.date,
+                  ref_letter.ref_number_desc AS Ref_Letter,
+                  main.ref_number
+                  
+                  FROM
+                  
+                  interview_actions
+                  
+                  INNER JOIN main ON interview_actions.id = main.id
+                  INNER JOIN interview_status ON main.interview__status = interview_status.interview_status
+                  INNER JOIN enumerators ON interview_actions.originator = enumerators.enum
+                  INNER JOIN ref_letter ON main.ref_letter = ref_letter.ref_number
+                  
+                  GROUP BY main.id
+                  
+                  ") 
 
 
 
+fwm$date <- as.Date(fwm$date)
+write.csv(fwm, "data/open/fieldwork.csv", row.names = FALSE)
+write.csv(interview_actions, "data/open/interview_actions.csv", row.names = FALSE)
+
+#write.csv(main, "data/open/main.csv", row.names = FALSE)
+#write.csv(capital_goods, "data/open/capital_goods.csv", row.names = FALSE)
+#write.csv(exp_details, "data/open/exp_details.csv", row.names = FALSE)
+#write.csv(exp_range, "data/open/exp_range.csv", row.names = FALSE)
+#write.csv(finaAcess_roser, "data/open/finaAcess_roser.csv", row.names = FALSE)
+#write.csv(info_activities, "data/open/info_activities.csv", row.names = FALSE)
+#write.csv(info_other_business, "data/open/info_other_business.csv", row.names = FALSE)
+#write.csv(mobMoney_info, "data/open/mobMoney_info.csv", row.names = FALSE)
+#write.csv(other_cost, "data/open/other_cost.csv", row.names = FALSE)
+#write.csv(other_invest, "data/open/other_invest.csv", row.names = FALSE)
+#write.csv(ref_yearDetails, "data/open/ref_yearDetails.csv", row.names = FALSE)
+#write.csv(register_id, "data/open/register_id.csv", row.names = FALSE)
+#write.csv(errors, "data/open/errors.csv", row.names = FALSE)
+#write.csv(interview_actions, "data/open/interview_actions.csv", row.names = FALSE)
 
 
+#### BEC TABULATION ####
+
+# 1. Number of Establishments in each Industry by Province in 2019 and 2021.
+
+Table_1 <- dbGetQuery(mydb, "SELECT 
+                                                  area_council.area_council_desc AS Area_Council,
+                                                  reference_year.reference_year_desc AS Reference_Year,
+                                                  province.province_desc AS Province,
+                                                  major_label_vansic.major_label_vansic_desc,
+                                                  COUNT(*) as Number_Of_Establishments
+                                                  
+                                                  
+                                                  FROM
+                                                  
+                                                  main
+                                                  
+                                                  INNER JOIN area_council ON main.area_council = area_council.area_council
+                                                  INNER JOIN major_label_vansic ON main.major_label_vansic = major_label_vansic.major_label_vansic
+                                                  INNER JOIN province ON main.province = province.province
+                                                  INNER JOIN ref_yearDetails on main.id = ref_yearDetails.id
+                                                  INNER JOIN reference_year on ref_yearDetails.ref_yearDetails__id = reference_year.reference_year
+                                                  
+                                                  GROUP BY area_council.area_council
+                                                  
+                                                  
+                                    ")
+
+# Table 2: Number of Establishments in Vanuatu by Size and Industry (Significant, Large, Medium, Small, Micro & Self-Employed) in 2019 and 2021
+Table_2 <- dbGetQuery(mydb, "SELECT 
+                                    major_label_vansic.major_label_vansic_desc,
+                                    ref_yearDetails.tot_paid_emp AS Num_Of_Paid_Employees,
+                                    reference_year.reference_year_desc AS Reference_Year
+                      
+                      FROM 
+                      
+                      main
+                      
+                      INNER JOIN major_label_vansic ON main.major_label_vansic = major_label_vansic.major_label_vansic
+                      INNER JOIN ref_yearDetails ON ref_yearDetails.id = main.id
+                      INNER JOIN reference_year ON ref_yearDetails.ref_yearDetails__id = reference_year.reference_year
+                      
+                      GROUP BY major_label_vansic.major_label_vansic_desc
+                      
+                      HAVING reference_year.reference_year_desc = '2019' OR reference_year.reference_year_desc = '2021'
+                      
+                      ORDER BY ref_yearDetails.tot_paid_emp DESC
+                      ")
+
+# Table 3: Total number of Establishments by Legal Status and Industry in 2019
+Table_3 <- dbGetQuery(mydb, "SELECT 
+                                    major_label_vansic.major_label_vansic_desc AS Major_Industry,
+                                    reference_year.reference_year_desc AS Reference_Year,
+                                    legal_status.legal_status_desc AS Legal_Status,
+                                    COUNT(*) AS Total_Number
+                                    
+                      
+                      FROM 
+                      
+                      main
+                      
+                      INNER JOIN major_label_vansic ON main.major_label_vansic = major_label_vansic.major_label_vansic
+                      INNER JOIN ref_yearDetails ON ref_yearDetails.id = main.id
+                      INNER JOIN reference_year ON ref_yearDetails.ref_yearDetails__id = reference_year.reference_year
+                      INNER JOIN legal_status ON main.legal_status = legal_status.legal_status
+                      
+                      GROUP BY legal_status.legal_status
+                      
+                      HAVING reference_year.reference_year_desc = '2019'
+                      
+                      ")
 
 
+# Table 4: Total number of Establishments by Legal Status and Industry in 2021
+Table_4 <- dbGetQuery(mydb, "SELECT 
+                                    major_label_vansic.major_label_vansic_desc AS Major_Industry,
+                                    reference_year.reference_year_desc AS Reference_Year,
+                                    legal_status.legal_status_desc AS Legal_Status,
+                                    COUNT(*) AS Total_Number
+                                    
+                      
+                      FROM 
+                      
+                      main
+                      
+                      INNER JOIN major_label_vansic ON main.major_label_vansic = major_label_vansic.major_label_vansic
+                      INNER JOIN ref_yearDetails ON ref_yearDetails.id = main.id
+                      INNER JOIN reference_year ON ref_yearDetails.ref_yearDetails__id = reference_year.reference_year
+                      INNER JOIN legal_status ON main.legal_status = legal_status.legal_status
+                      
+                      GROUP BY legal_status.legal_status
+                      
+                      HAVING reference_year.reference_year_desc = '2021'
+                      
+                      ")
 
+# Table 5: Total Sales by Size and Industry in 2019 and 2021
 
+Table_5 <- dbGetQuery(mydb, "SELECT 
+                                    major_label_vansic.major_label_vansic_desc,
+                                    ref_yearDetails.tot_paid_emp AS Num_Of_Paid_Employees,
+                                    reference_year.reference_year_desc AS Reference_Year,
+                                    ref_yearDetails.sales_goods_services AS Total_Sales
+                      
+                      FROM 
+                      
+                      main
+                      
+                      INNER JOIN major_label_vansic ON main.major_label_vansic = major_label_vansic.major_label_vansic
+                      INNER JOIN ref_yearDetails ON ref_yearDetails.id = main.id
+                      INNER JOIN reference_year ON ref_yearDetails.ref_yearDetails__id = reference_year.reference_year
+                      
+                      
+                      
+                      WHERE reference_year.reference_year_desc = '2019' OR reference_year.reference_year_desc = '2021'
+                      
+                      ORDER BY ref_yearDetails.sales_goods_services DESC
+                      ")
+# Table 6: Number of Employees by Citizenship, Sex and Industry in 2019
+Table_6 <- dbGetQuery(mydb, "SELECT reference_year.reference_year_desc AS Reference_Year,
+                      major_label_vansic.major_label_vansic_desc AS Major_Industry,
+                      ref_yearDetails.local_emp AS Number_Of_Local_Employees,
+                      ref_yearDetails.foreign_emp AS Number_Of_Foreign_Employees,
+                      ref_yearDetails.mang_vanmale AS NiVan_Male_Managerial_Skills,
+                      ref_yearDetails.skill_vanmale AS Skilled_NiVan_Male,
+                      ref_yearDetails.unskil_vanmale AS Unskilled_NiVan_Male,
+                      ref_yearDetails.mang_vanfemale AS NiVan_Female_Managerial_Skills,
+                      ref_yearDetails.skill_vanfemale AS Skilled_NiVan_Female
+                      
+                      FROM 
+                      
+                      ref_yearDetails
+                      
+                      INNER JOIN reference_year ON ref_yearDetails.ref_yearDetails__id = reference_year.reference_year
+                      INNER JOIN main ON ref_yearDetails.id = main.id
+                      INNER JOIN major_label_vansic ON main.major_label_vansic = major_label_vansic.major_label_vansic
+                      
+                      WHERE reference_year.reference_year_desc = '2019'
+                      
+                      
+                      ")
 
+# Table 7: Number of Employees by Citizenship, Sex, and by Industry in 2021
+Table_7 <- dbGetQuery(mydb, "SELECT reference_year.reference_year_desc AS Reference_Year,
+                      major_label_vansic.major_label_vansic_desc AS Major_Industry,
+                      ref_yearDetails.local_emp AS Number_Of_Local_Employees,
+                      ref_yearDetails.foreign_emp AS Number_Of_Foreign_Employees,
+                      ref_yearDetails.mang_vanmale AS NiVan_Male_Managerial_Skills,
+                      ref_yearDetails.skill_vanmale AS Skilled_NiVan_Male,
+                      ref_yearDetails.unskil_vanmale AS Unskilled_NiVan_Male,
+                      ref_yearDetails.mang_vanfemale AS NiVan_Female_Managerial_Skills,
+                      ref_yearDetails.skill_vanfemale AS Skilled_NiVan_Female
+                      
+                      FROM 
+                      
+                      ref_yearDetails
+                      
+                      INNER JOIN reference_year ON ref_yearDetails.ref_yearDetails__id = reference_year.reference_year
+                      INNER JOIN main ON ref_yearDetails.id = main.id
+                      INNER JOIN major_label_vansic ON main.major_label_vansic = major_label_vansic.major_label_vansic
+                      
+                      WHERE reference_year.reference_year_desc = '2021'
+                      
+                      ")
 
+# Table 8: Total Compensation of employees according to Industry, Sex and Local and Foreign in 2019
+Table_8 <- dbGetQuery(mydb, "SELECT reference_year.reference_year_desc AS Reference_Year,
+                      major_label_vansic.major_label_vansic_desc AS Major_Industry,
+                      ref_yearDetails.local_emp AS NiVan_Employees, 
+                      ref_yearDetails.foreign_emp AS Foreign_Employees, 
+                      ref_yearDetails.mang_vanmale AS NiVan_Male_Manager_Skills, 
+                      ref_yearDetails.skill_vanmale AS Skilled_NiVan_Male, 
+                      ref_yearDetails.unskil_vanmale AS Unskilled_NiVan_Male, 
+                      ref_yearDetails.mang_vanfemale AS NiVan_Female_Manager_Skills, 
+                      ref_yearDetails.skill_vanfemale AS Skilled_NiVan_Male, 
+                      ref_yearDetails.skill_vanfemale AS Skilled_NiVan_Female, 
+                      ref_yearDetails.unskil_vanfemale AS Unskilled_NiVan_Female, 
+                      ref_yearDetails.mang_formale AS Foreign_Male_Manager_Skills, 
+                      ref_yearDetails.skill_formale AS Skilled_Foreign_Male, 
+                      ref_yearDetails.unskil_formale AS Unskilled_Foreign_Male, 
+                      ref_yearDetails.mang_forfemale AS Skilled_Foreign_Male, 
+                      ref_yearDetails.skill_forfemale AS Foreign_Female_Manager_Skills, 
+                      ref_yearDetails.unskil_forfemale AS Unskilled_Foreign_Female
+                      
+                      FROM
+                      
+                      ref_yearDetails
+                      
+                      INNER JOIN reference_year ON ref_yearDetails.ref_yearDetails__id = reference_year.reference_year
+                      INNER JOIN main ON ref_yearDetails.id = main.id
+                      INNER JOIN major_label_vansic on main.major_label_vansic = major_label_vansic.major_label_vansic
+                      
+                      WHERE reference_year.reference_year_desc = '2019'
+                      
+                      ")
 
+# Table 9: Total Compensation of employees according to Industry, Sex and Local and Foreign 2021
+Table_9 <- dbGetQuery(mydb, "SELECT reference_year.reference_year_desc AS Reference_Year,
+                      major_label_vansic.major_label_vansic_desc AS Major_Industry,
+                      ref_yearDetails.local_emp AS NiVan_Employees, 
+                      ref_yearDetails.foreign_emp AS Foreign_Employees, 
+                      ref_yearDetails.mang_vanmale AS NiVan_Male_Manager_Skills, 
+                      ref_yearDetails.skill_vanmale AS Skilled_NiVan_Male, 
+                      ref_yearDetails.unskil_vanmale AS Unskilled_NiVan_Male, 
+                      ref_yearDetails.mang_vanfemale AS NiVan_Female_Manager_Skills, 
+                      ref_yearDetails.skill_vanfemale AS Skilled_NiVan_Male, 
+                      ref_yearDetails.skill_vanfemale AS Skilled_NiVan_Female, 
+                      ref_yearDetails.unskil_vanfemale AS Unskilled_NiVan_Female, 
+                      ref_yearDetails.mang_formale AS Foreign_Male_Manager_Skills, 
+                      ref_yearDetails.skill_formale AS Skilled_Foreign_Male, 
+                      ref_yearDetails.unskil_formale AS Unskilled_Foreign_Male, 
+                      ref_yearDetails.mang_forfemale AS Skilled_Foreign_Male, 
+                      ref_yearDetails.skill_forfemale AS Foreign_Female_Manager_Skills, 
+                      ref_yearDetails.unskil_forfemale AS Unskilled_Foreign_Female
+                      
+                      FROM
+                      
+                      ref_yearDetails
+                      
+                      INNER JOIN reference_year ON ref_yearDetails.ref_yearDetails__id = reference_year.reference_year
+                      INNER JOIN main ON ref_yearDetails.id = main.id
+                      INNER JOIN major_label_vansic on main.major_label_vansic = major_label_vansic.major_label_vansic
+                      
+                      WHERE reference_year.reference_year_desc = '2021'
+                      
+                      ")
 
+# Table 10: Total Number of Employees by skill type in 2019 and 2021 by Industry
+Table_10 <- dbGetQuery(mydb, "SELECT reference_year.reference_year_desc AS Reference_Year,
+                      major_label_vansic.major_label_vansic_desc,
+                      ref_yearDetails.mang_vanmale, 
+                      ref_yearDetails.skill_vanmale, 
+                      ref_yearDetails.unskil_vanmale, 
+                      ref_yearDetails.mang_vanfemale, 
+                      ref_yearDetails.skill_vanfemale, 
+                      ref_yearDetails.skill_vanfemale, 
+                      ref_yearDetails.unskil_vanfemale, 
+                      ref_yearDetails.mang_formale, 
+                      ref_yearDetails.skill_formale, 
+                      ref_yearDetails.unskil_formale, 
+                      ref_yearDetails.mang_forfemale, 
+                      ref_yearDetails.skill_forfemale, 
+                      ref_yearDetails.unskil_forfemale
+                      
+                      FROM 
+                      
+                      ref_yearDetails
+                      
+                      INNER JOIN reference_year ON ref_yearDetails.ref_yearDetails__id = reference_year.reference_year
+                      INNER JOIN main ON ref_yearDetails.id = main.id
+                      INNER JOIN major_label_vansic ON main.major_label_vansic = major_label_vansic.major_label_vansic
+                      
+                      GROUP BY major_label_vansic.major_label_vansic
+                      
+")
 
+##### Nimal's Data ####
+pilotData <- dbGetQuery(mydb, "SELECT main.name_businesEsta AS NAME,
+                        main.busines_start_for AS YEAR,
+                        main.business_locate AS ESTAB_NO,
+                        area_council.area_council_desc AS LOCATION,
+                        institution_reg.institution_reg_desc AS Registration,
+                        legal_status.legal_status_desc AS LEGALSTAT,
+                        account_keeping.account_keeping_desc AS ACCOUNTS
+                        
+                        FROM 
+                        
+                        main
+                        
+                        INNER JOIN area_council ON main.area_council = area_council.area_council
+                        INNER JOIN register_id ON main.id = register_id.id
+                        INNER JOIN institution_reg ON register_id.register_id__id = institution_reg.institution_reg
+                        INNER JOIN legal_status ON main.legal_status = legal_status.legal_status
+                        INNER JOIN account_keeping ON main.account_keeping = account_keeping.account_keeping
+                        
+                        GROUP BY main.name_businesEsta
+                        " )
+  
+#province <- read.csv("data/open/province.csv")
 
-
-province <- read.csv("data/open/province.csv")
 prov <- dbGetQuery(mydb, "SELECT province, COUNT(interview__key) AS total FROM main WHERE province > 0 GROUP BY province")
 
 prov_results <- merge(prov, province, by = "province")
