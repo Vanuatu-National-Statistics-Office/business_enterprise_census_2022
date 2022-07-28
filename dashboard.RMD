@@ -31,7 +31,8 @@ server_password <- Sys.getenv("BEC_PASSWORD")
 set_credentials(
   server = server_name,
   user = server_user,
-  password = server_password
+  password = server_password,
+  workspace = "bec"
 )
 
 all_questionnaires <- get_questionnaires(workspace = "bec")
@@ -39,7 +40,7 @@ all_questionnaires <- get_questionnaires(workspace = "bec")
 start_export(
   qnr_id = "bf962319d179467babb153516f46018b$2",
   export_type = "Tabular",
-  interview_status = "All",
+  interview_status = "ApprovedByHeadquarters",
   include_meta = TRUE,
   workspace = "bec"
 ) -> started_job_id
@@ -57,20 +58,20 @@ get_export_file(
 
 ```{r Read tabfiles from downloaded zipped file}
 #Read data into R from downloaded zip file
-main <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "business_census2022.tab"))
-capital_goods <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "capital_goods.tab"))
-exp_details <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "exp_details.tab"))
-exp_range <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "exp_range.tab"))
-finaAcess_roser <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "finaAcess_roser.tab"))
-info_activities <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "info_activities.tab"))
-info_other_business <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "info_other_business.tab"))
-mobMoney_info <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "mobMoney_info.tab"))
-other_cost <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "other_cost.tab"))
-other_invest <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "other_invest.tab"))
-ref_yearDetails <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "ref_yearDetails.tab"))
-register_id <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "register_id.tab"))
-errors <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "interview__errors.tab"))
-interview_actions <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "interview__actions.tab"))
+main <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "business_census2022.tab"))
+capital_goods <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "capital_goods.tab"))
+exp_details <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "exp_details.tab"))
+exp_range <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "exp_range.tab"))
+finaAcess_roser <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "finaAcess_roser.tab"))
+info_activities <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "info_activities.tab"))
+info_other_business <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "info_other_business.tab"))
+mobMoney_info <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "mobMoney_info.tab"))
+other_cost <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "other_cost.tab"))
+other_invest <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "other_invest.tab"))
+ref_yearDetails <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "ref_yearDetails.tab"))
+register_id <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "register_id.tab"))
+errors <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "interview__errors.tab"))
+interview_actions <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "interview__actions.tab"))
 
 ```
 
