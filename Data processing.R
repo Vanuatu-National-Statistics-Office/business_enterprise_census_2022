@@ -286,8 +286,11 @@ fwm <- dbGetQuery(mydb, "Select main.id,
                   interview_actions.responsible__name,
                   enumerators.enumdesc,
                   interview_actions.date,
+                  main.start_time,
+                  main.start_end_time,
                   ref_letter.ref_number_desc AS Ref_Letter,
-                  main.ref_number
+                  main.ref_number,
+                  main.name_businesEsta AS Business_Name
                   
                   FROM
                   
@@ -301,6 +304,19 @@ fwm <- dbGetQuery(mydb, "Select main.id,
                   GROUP BY main.id
                   
                   ") 
+
+
+#library(lubridate) # to use the mdy_hms function to convert character date to timestamp
+
+# Formatting date fields to calculate the difference of times and interview was made
+
+#fwm$start_time <- gsub("T"," ",as.character(fwm$start_time))
+#fwm$start_end_time <- gsub("T"," ",as.character(fwm$start_end_time))
+
+# Removing 
+#fwm$start_time <- sub(".*?\\T", "", fwm$start_time)
+#fwm <- fwm %>% mutate(start_time = mdy_hms(start_time))
+#difftime(fwm$start_time, fwm$start_end_time, units = "mins")
 
 
 
