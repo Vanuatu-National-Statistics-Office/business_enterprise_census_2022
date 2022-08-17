@@ -1,5 +1,7 @@
 #### Loading Libraries & Environment Setup####
 
+rm(list = ls())
+
 library(flexdashboard) #interactive dashboards for R
 library(dplyr) #Data manipulation
 library(readxl) #read in Excel files
@@ -12,6 +14,7 @@ library(susoapi) # R wrapper function for each Survey Solutions API endpoint
 library(readr) #  provide a fast and friendly way to read rectangular data
 #install.packages("zoo")
 library(zoo) # as.date() converting numeric date to normal day values
+library(tidyr)
 
 options(scipen = 100, digits = 4) #prevent scientific notation
 
@@ -41,7 +44,7 @@ all_questionnaires <- get_questionnaires(workspace = "bec")
 start_export(
   qnr_id = "bf962319d179467babb153516f46018b$2",
   export_type = "Tabular",
-  interview_status = "All",
+  interview_status = "ApprovedByHeadquarters",
   include_meta = TRUE,
   workspace = "bec"
 ) -> started_job_id
@@ -59,20 +62,20 @@ get_export_file(
 #### Process Incoming Data ####
 
 ## Read data into R from downloaded zip file ##
-main <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "business_census2022.tab"))
-capital_goods <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "capital_goods.tab"))
-exp_details <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "exp_details.tab"))
-exp_range <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "exp_range.tab"))
-finaAcess_roser <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "finaAcess_roser.tab"))
-info_activities <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "info_activities.tab"))
-info_other_business <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "info_other_business.tab"))
-mobMoney_info <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "mobMoney_info.tab"))
-other_cost <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "other_cost.tab"))
-other_invest <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "other_invest.tab"))
-ref_yearDetails <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "ref_yearDetails.tab"))
-register_id <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "register_id.tab"))
-errors <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "interview__errors.tab"))
-interview_actions <- read_delim(unzip("data/secure/business_census2022_2_Tabular_All.zip", "interview__actions.tab"))
+main <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "business_census2022.tab"))
+capital_goods <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "capital_goods.tab"))
+exp_details <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "exp_details.tab"))
+exp_range <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "exp_range.tab"))
+finaAcess_roser <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "finaAcess_roser.tab"))
+info_activities <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "info_activities.tab"))
+info_other_business <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "info_other_business.tab"))
+mobMoney_info <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "mobMoney_info.tab"))
+other_cost <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "other_cost.tab"))
+other_invest <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "other_invest.tab"))
+ref_yearDetails <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "ref_yearDetails.tab"))
+register_id <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "register_id.tab"))
+errors <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "interview__errors.tab"))
+interview_actions <- read_delim(unzip("data/secure/business_census2022_2_Tabular_ApprovedByHeadquarters.zip", "interview__actions.tab"))
 
 
 
@@ -304,164 +307,229 @@ fwm <- dbGetQuery(mydb, "Select main.id,
                   GROUP BY main.id
                   
                   ") 
+# Concatenate fields Ref_letter and ref_number
+fwm$Reference_Number <- paste(fwm$Ref_Letter, fwm$ref_number)
 
+dbWriteTable(mydb, "fwm", fwm, overwrite=TRUE)
 
+#Grouping Formal Sector Businesses 
+Formal_Industry <- dbGetQuery(mydb, "Select main.id,
+                      main.name_businesEsta,
+                      major_label_vansic.major_label_vansic_desc AS Industry
+                      
+                       
+                      FROM 
+                       
+                      main
+                       
+                      INNER JOIN major_label_vansic ON main.major_label_vansic = major_label_vansic.major_label_vansic
+                      
+                      ")
+Formal_Industry$IndustryType <- 'Formal' # Adding IndustryType column
+dbWriteTable(mydb, "Formal_Industry", Formal_Industry, overwrite=TRUE)
+
+#Grouping Informal Sector Businesses
+Informal_Industry <- dbGetQuery(mydb, "Select main.id,
+                      main.name_businesEsta,
+                      major_Infolabel_vanisic.major_Infolabel_vanisic_desc AS Industry
+                      
+                       
+                      FROM 
+                       
+                      main
+                       
+                      INNER JOIN major_Infolabel_vanisic ON main.major_Infolabel_vanisic = major_Infolabel_vanisic.major_Infolabel_vanisic
+                      
+                      ")
+Informal_Industry$IndustryType <- 'Informal' # Adding IndustryType column
+dbWriteTable(mydb, "Informal_Industry", Informal_Industry, overwrite=TRUE)
+
+Industry <- rbind(Formal_Industry, Informal_Industry) # combining the Formal and Informal Industry tables
+dbWriteTable(mydb, "Industry", Industry, overwrite=TRUE)
+
+fwm_industry <- dbGetQuery(mydb, "Select fwm.id,
+                           fwm.Reference_Number,
+                           fwm.Business_Name,
+                           Industry.Industry AS Major_Label_Vansic,
+                           Industry.IndustryType,
+                           fwm.originator,
+                           fwm.responsible__name,
+                           fwm.enumdesc,
+                           fwm.date
+                           
+                           FROM
+                           
+                           fwm
+                           
+                           INNER JOIN Industry ON fwm.id = Industry.id
+                           
+                           ")
 #library(lubridate) # to use the mdy_hms function to convert character date to timestamp
 
-# Formatting date fields to calculate the difference of times and interview was made
+#Formatting date fields to calculate the difference of times and interview was made
 
+# Removing "T" in the time fields
 #fwm$start_time <- gsub("T"," ",as.character(fwm$start_time))
 #fwm$start_end_time <- gsub("T"," ",as.character(fwm$start_end_time))
 
-# Removing 
 #fwm$start_time <- sub(".*?\\T", "", fwm$start_time)
 #fwm <- fwm %>% mutate(start_time = mdy_hms(start_time))
 #difftime(fwm$start_time, fwm$start_end_time, units = "mins")
 
 
 
-fwm$date <- as.Date(fwm$date)
-write.csv(fwm, "data/open/fieldwork.csv", row.names = FALSE)
-write.csv(interview_actions, "data/open/interview_actions.csv", row.names = FALSE)
+fwm_industry$date <- as.Date(fwm_industry$date)
+write.csv(fwm_industry, "data/open/fieldwork.csv", row.names = FALSE)
 
-#write.csv(main, "data/open/main.csv", row.names = FALSE)
-#write.csv(capital_goods, "data/open/capital_goods.csv", row.names = FALSE)
-#write.csv(exp_details, "data/open/exp_details.csv", row.names = FALSE)
-#write.csv(exp_range, "data/open/exp_range.csv", row.names = FALSE)
-#write.csv(finaAcess_roser, "data/open/finaAcess_roser.csv", row.names = FALSE)
-#write.csv(info_activities, "data/open/info_activities.csv", row.names = FALSE)
-#write.csv(info_other_business, "data/open/info_other_business.csv", row.names = FALSE)
-#write.csv(mobMoney_info, "data/open/mobMoney_info.csv", row.names = FALSE)
-#write.csv(other_cost, "data/open/other_cost.csv", row.names = FALSE)
-#write.csv(other_invest, "data/open/other_invest.csv", row.names = FALSE)
-#write.csv(ref_yearDetails, "data/open/ref_yearDetails.csv", row.names = FALSE)
-#write.csv(register_id, "data/open/register_id.csv", row.names = FALSE)
-#write.csv(errors, "data/open/errors.csv", row.names = FALSE)
-#write.csv(interview_actions, "data/open/interview_actions.csv", row.names = FALSE)
 
 
 #### BEC TABULATION ####
+#Install 'pivottabler'
+
 
 # 1. Number of Establishments in each Industry by Province in 2019 and 2021.
 
-Table_1 <- dbGetQuery(mydb, "SELECT 
-                                                  area_council.area_council_desc AS Area_Council,
-                                                  reference_year.reference_year_desc AS Reference_Year,
+Table_1 <- dbGetQuery(mydb, "SELECT area_council.area_council_desc AS Area_Council,
                                                   province.province_desc AS Province,
-                                                  major_label_vansic.major_label_vansic_desc,
-                                                  COUNT(*) as Number_Of_Establishments
-                                                  
+                                                  reference_year.reference_year_desc AS Reference_Year,
+                                                  Industry.Industry,
+                                                  Count(DISTINCT Industry.id) AS Number_Of_Establishments
                                                   
                                                   FROM
                                                   
                                                   main
                                                   
                                                   INNER JOIN area_council ON main.area_council = area_council.area_council
-                                                  INNER JOIN major_label_vansic ON main.major_label_vansic = major_label_vansic.major_label_vansic
                                                   INNER JOIN province ON main.province = province.province
                                                   INNER JOIN ref_yearDetails on main.id = ref_yearDetails.id
                                                   INNER JOIN reference_year on ref_yearDetails.ref_yearDetails__id = reference_year.reference_year
+                                                  INNER JOIN Industry ON main.id = Industry.id
                                                   
-                                                  GROUP BY area_council.area_council
+                                                  GROUP BY Industry.Industry, reference_year.reference_year_desc
                                                   
-                                                  
+                                                  ORDER BY Industry.Industry
                                     ")
 
-# Table 2: Number of Establishments in Vanuatu by Size and Industry (Significant, Large, Medium, Small, Micro & Self-Employed) in 2019 and 2021
-Table_2 <- dbGetQuery(mydb, "SELECT 
-                                    major_label_vansic.major_label_vansic_desc,
-                                    ref_yearDetails.tot_paid_emp AS Num_Of_Paid_Employees,
-                                    reference_year.reference_year_desc AS Reference_Year
-                      
-                      FROM 
-                      
-                      main
-                      
-                      INNER JOIN major_label_vansic ON main.major_label_vansic = major_label_vansic.major_label_vansic
-                      INNER JOIN ref_yearDetails ON ref_yearDetails.id = main.id
-                      INNER JOIN reference_year ON ref_yearDetails.ref_yearDetails__id = reference_year.reference_year
-                      
-                      GROUP BY major_label_vansic.major_label_vansic_desc
-                      
-                      HAVING reference_year.reference_year_desc = '2019' OR reference_year.reference_year_desc = '2021'
-                      
-                      ORDER BY ref_yearDetails.tot_paid_emp DESC
-                      ")
+dbWriteTable(mydb, "Table_1", Table_1, overwrite=TRUE) 
 
-# Table 3: Total number of Establishments by Legal Status and Industry in 2019
-Table_3 <- dbGetQuery(mydb, "SELECT 
-                                    major_label_vansic.major_label_vansic_desc AS Major_Industry,
+#ptTable1 <- PivotTable$new()
+#ptTable1$addData(Table_1)
+#ptTable1$addColumnDataGroups("Reference_Year")
+#ptTable1$addRowDataGroups("Industry")
+#ptTable1$defineCalculation(calculationName = "TotalIndustry", summariseExpression = "n()")
+#ptTable1$renderPivot()
+
+# Table 2: Number of Establishments in Vanuatu by Size and Industry 
+#         (Significant, Large, Medium, Small, Micro & Self-Employed) in 2019 and 2021
+Table_2 <- dbGetQuery(mydb, "SELECT 
+                                    Industry.Industry,
                                     reference_year.reference_year_desc AS Reference_Year,
-                                    legal_status.legal_status_desc AS Legal_Status,
-                                    COUNT(*) AS Total_Number
+                                    Industry.IndustryType AS Sector,
+                                    ref_yearDetails.tot_paid_emp AS Paid_Emp_Formal,
+                                    main.infor_paidEmp AS Paid_Emp_Informal
+                                    
                                     
                       
                       FROM 
                       
-                      main
+                      ref_yearDetails
                       
-                      INNER JOIN major_label_vansic ON main.major_label_vansic = major_label_vansic.major_label_vansic
-                      INNER JOIN ref_yearDetails ON ref_yearDetails.id = main.id
+                      INNER JOIN Industry ON ref_yearDetails.id = Industry.id
+                      INNER JOIN main ON ref_yearDetails.id = main.id
                       INNER JOIN reference_year ON ref_yearDetails.ref_yearDetails__id = reference_year.reference_year
+                      
+                      GROUP BY Industry.id, ref_yearDetails.id
+                      
+                      HAVING reference_year.reference_year_desc = '2019' OR reference_year.reference_year_desc = '2021'
+                      
+                      ORDER BY ref_yearDetails.tot_paid_emp 
+                      ")
+dbWriteTable(mydb, "Table_2", Table_2, overwrite=TRUE)
+
+
+# Table 3: Total number of Establishments by Legal Status and Industry in 2019
+Table_3 <- dbGetQuery(mydb, "SELECT 
+                                    Industry.Industry AS Industry,
+                                    Industry.IndustryType,
+                                    reference_year.reference_year_desc AS Reference_Year,
+                                    legal_status.legal_status_desc AS Legal_Status
+                                    
+                                    
+                      
+                      FROM 
+                      
+                      ref_yearDetails 
+                      
+                      INNER JOIN Industry ON ref_yearDetails.id = Industry.id
+                      INNER JOIN reference_year ON ref_yearDetails.ref_yearDetails__id = reference_year.reference_year
+                      INNER JOIN main ON ref_yearDetails.id = main.id
                       INNER JOIN legal_status ON main.legal_status = legal_status.legal_status
                       
-                      GROUP BY legal_status.legal_status
+                      GROUP BY Industry.id, legal_status.legal_status
                       
                       HAVING reference_year.reference_year_desc = '2019'
                       
                       ")
+dbWriteTable(mydb, "Table_3", Table_3, overwrite=TRUE)
 
 
 # Table 4: Total number of Establishments by Legal Status and Industry in 2021
 Table_4 <- dbGetQuery(mydb, "SELECT 
-                                    major_label_vansic.major_label_vansic_desc AS Major_Industry,
+                                    Industry.Industry AS Industry,
+                                    Industry.IndustryType,
                                     reference_year.reference_year_desc AS Reference_Year,
-                                    legal_status.legal_status_desc AS Legal_Status,
-                                    COUNT(*) AS Total_Number
+                                    legal_status.legal_status_desc AS Legal_Status
+                                    
+                                    
                                     
                       
                       FROM 
                       
-                      main
+                      ref_yearDetails 
                       
-                      INNER JOIN major_label_vansic ON main.major_label_vansic = major_label_vansic.major_label_vansic
-                      INNER JOIN ref_yearDetails ON ref_yearDetails.id = main.id
+                      INNER JOIN Industry ON ref_yearDetails.id = Industry.id
                       INNER JOIN reference_year ON ref_yearDetails.ref_yearDetails__id = reference_year.reference_year
+                      INNER JOIN main ON ref_yearDetails.id = main.id
                       INNER JOIN legal_status ON main.legal_status = legal_status.legal_status
                       
-                      GROUP BY legal_status.legal_status
+                      GROUP BY Industry.id, legal_status.legal_status
                       
                       HAVING reference_year.reference_year_desc = '2021'
                       
                       ")
+dbWriteTable(mydb, "Table_4", Table_4, overwrite=TRUE)
+# write.csv(Table_4, "data/open/Table4.csv", row.names = FALSE)
 
 # Table 5: Total Sales by Size and Industry in 2019 and 2021
 
-Table_5 <- dbGetQuery(mydb, "SELECT 
-                                    major_label_vansic.major_label_vansic_desc,
-                                    ref_yearDetails.tot_paid_emp AS Num_Of_Paid_Employees,
-                                    reference_year.reference_year_desc AS Reference_Year,
+Table_5 <- dbGetQuery(mydb, "SELECT reference_year.reference_year_desc AS Reference_Year,
+                                    Industry.Industry,
+                                    Industry.IndustryType,
+                                    ref_yearDetails.tot_paid_emp AS Paid_Emp_Formal,
+                                    main.infor_paidEmp AS Paid_Emp_Informal,
                                     ref_yearDetails.sales_goods_services AS Total_Sales
                       
                       FROM 
                       
-                      main
+                      ref_yearDetails
                       
-                      INNER JOIN major_label_vansic ON main.major_label_vansic = major_label_vansic.major_label_vansic
-                      INNER JOIN ref_yearDetails ON ref_yearDetails.id = main.id
+                      INNER JOIN Industry on ref_yearDetails.id = Industry.id
                       INNER JOIN reference_year ON ref_yearDetails.ref_yearDetails__id = reference_year.reference_year
+                      INNER JOIN main ON ref_yearDetails.id = main.id
                       
+                      GROUP BY Industry.id, ref_yearDetails.id
                       
+                      HAVING reference_year.reference_year_desc = '2019' OR reference_year.reference_year_desc = '2021'
                       
-                      WHERE reference_year.reference_year_desc = '2019' OR reference_year.reference_year_desc = '2021'
-                      
-                      ORDER BY ref_yearDetails.sales_goods_services DESC
                       ")
+dbWriteTable(mydb, "Table_5", Table_5, overwrite=TRUE)
+
 # Table 6: Number of Employees by Citizenship, Sex and Industry in 2019
-Table_6 <- dbGetQuery(mydb, "SELECT reference_year.reference_year_desc AS Reference_Year,
-                      major_label_vansic.major_label_vansic_desc AS Major_Industry,
-                      ref_yearDetails.local_emp AS Number_Of_Local_Employees,
-                      ref_yearDetails.foreign_emp AS Number_Of_Foreign_Employees,
+Table_6 <- dbGetQuery(mydb, "SELECT 
+                      Industry.Industry,
+                      Industry.IndustryType,
+                      ref_yearDetails.local_emp AS Local_Emp,
+                      ref_yearDetails.foreign_emp AS Foreign_Empl,
                       ref_yearDetails.mang_vanmale AS NiVan_Male_Managerial_Skills,
                       ref_yearDetails.skill_vanmale AS Skilled_NiVan_Male,
                       ref_yearDetails.unskil_vanmale AS Unskilled_NiVan_Male,
@@ -473,19 +541,21 @@ Table_6 <- dbGetQuery(mydb, "SELECT reference_year.reference_year_desc AS Refere
                       ref_yearDetails
                       
                       INNER JOIN reference_year ON ref_yearDetails.ref_yearDetails__id = reference_year.reference_year
-                      INNER JOIN main ON ref_yearDetails.id = main.id
-                      INNER JOIN major_label_vansic ON main.major_label_vansic = major_label_vansic.major_label_vansic
+                      INNER JOIN Industry ON ref_yearDetails.id = Industry.id
                       
-                      WHERE reference_year.reference_year_desc = '2019'
+                      GROUP BY Industry.id, ref_yearDetails.ref_yearDetails__id
                       
+                      HAVING reference_year.reference_year_desc = '2019'
                       
                       ")
+dbWriteTable(mydb, "Table_6", Table_6, overwrite=TRUE)
 
 # Table 7: Number of Employees by Citizenship, Sex, and by Industry in 2021
-Table_7 <- dbGetQuery(mydb, "SELECT reference_year.reference_year_desc AS Reference_Year,
-                      major_label_vansic.major_label_vansic_desc AS Major_Industry,
-                      ref_yearDetails.local_emp AS Number_Of_Local_Employees,
-                      ref_yearDetails.foreign_emp AS Number_Of_Foreign_Employees,
+Table_7 <- dbGetQuery(mydb, "SELECT 
+                      Industry.Industry,
+                      Industry.IndustryType,
+                      ref_yearDetails.local_emp AS Local_Emp,
+                      ref_yearDetails.foreign_emp AS Foreign_Empl,
                       ref_yearDetails.mang_vanmale AS NiVan_Male_Managerial_Skills,
                       ref_yearDetails.skill_vanmale AS Skilled_NiVan_Male,
                       ref_yearDetails.unskil_vanmale AS Unskilled_NiVan_Male,
@@ -497,83 +567,69 @@ Table_7 <- dbGetQuery(mydb, "SELECT reference_year.reference_year_desc AS Refere
                       ref_yearDetails
                       
                       INNER JOIN reference_year ON ref_yearDetails.ref_yearDetails__id = reference_year.reference_year
-                      INNER JOIN main ON ref_yearDetails.id = main.id
-                      INNER JOIN major_label_vansic ON main.major_label_vansic = major_label_vansic.major_label_vansic
+                      INNER JOIN Industry ON ref_yearDetails.id = Industry.id
                       
-                      WHERE reference_year.reference_year_desc = '2021'
+                      GROUP BY Industry.id, ref_yearDetails.ref_yearDetails__id
+                      
+                      HAVING reference_year.reference_year_desc = '2021'
                       
                       ")
+dbWriteTable(mydb, "Table_7", Table_7, overwrite=TRUE)
 
 # Table 8: Total Compensation of employees according to Industry, Sex and Local and Foreign in 2019
 Table_8 <- dbGetQuery(mydb, "SELECT reference_year.reference_year_desc AS Reference_Year,
-                      major_label_vansic.major_label_vansic_desc AS Major_Industry,
-                      ref_yearDetails.local_emp AS NiVan_Employees, 
-                      ref_yearDetails.foreign_emp AS Foreign_Employees, 
-                      ref_yearDetails.mang_vanmale AS NiVan_Male_Manager_Skills, 
-                      ref_yearDetails.skill_vanmale AS Skilled_NiVan_Male, 
-                      ref_yearDetails.unskil_vanmale AS Unskilled_NiVan_Male, 
-                      ref_yearDetails.mang_vanfemale AS NiVan_Female_Manager_Skills, 
-                      ref_yearDetails.skill_vanfemale AS Skilled_NiVan_Male, 
-                      ref_yearDetails.skill_vanfemale AS Skilled_NiVan_Female, 
-                      ref_yearDetails.unskil_vanfemale AS Unskilled_NiVan_Female, 
-                      ref_yearDetails.mang_formale AS Foreign_Male_Manager_Skills, 
-                      ref_yearDetails.skill_formale AS Skilled_Foreign_Male, 
-                      ref_yearDetails.unskil_formale AS Unskilled_Foreign_Male, 
-                      ref_yearDetails.mang_forfemale AS Skilled_Foreign_Male, 
-                      ref_yearDetails.skill_forfemale AS Foreign_Female_Manager_Skills, 
-                      ref_yearDetails.unskil_forfemale AS Unskilled_Foreign_Female
+                      Industry.Industry,
+                      Industry.IndustryType,
+                      ref_yearDetails.local_emp,
+                      ref_yearDetails.foreign_emp,
+                      ref_yearDetails.employee_comp
                       
                       FROM
                       
                       ref_yearDetails
                       
                       INNER JOIN reference_year ON ref_yearDetails.ref_yearDetails__id = reference_year.reference_year
+                      INNER JOIN Industry ON ref_yearDetails.id = Industry.id
                       INNER JOIN main ON ref_yearDetails.id = main.id
-                      INNER JOIN major_label_vansic on main.major_label_vansic = major_label_vansic.major_label_vansic
                       
-                      WHERE reference_year.reference_year_desc = '2019'
+                      GROUP BY Industry.id, ref_yearDetails.ref_yearDetails__id
+                      
+                      HAVING reference_year.reference_year_desc = '2019'
                       
                       ")
+dbWriteTable(mydb, "Table_8", Table_8, overwrite=TRUE)
 
 # Table 9: Total Compensation of employees according to Industry, Sex and Local and Foreign 2021
 Table_9 <- dbGetQuery(mydb, "SELECT reference_year.reference_year_desc AS Reference_Year,
-                      major_label_vansic.major_label_vansic_desc AS Major_Industry,
-                      ref_yearDetails.local_emp AS NiVan_Employees, 
-                      ref_yearDetails.foreign_emp AS Foreign_Employees, 
-                      ref_yearDetails.mang_vanmale AS NiVan_Male_Manager_Skills, 
-                      ref_yearDetails.skill_vanmale AS Skilled_NiVan_Male, 
-                      ref_yearDetails.unskil_vanmale AS Unskilled_NiVan_Male, 
-                      ref_yearDetails.mang_vanfemale AS NiVan_Female_Manager_Skills, 
-                      ref_yearDetails.skill_vanfemale AS Skilled_NiVan_Male, 
-                      ref_yearDetails.skill_vanfemale AS Skilled_NiVan_Female, 
-                      ref_yearDetails.unskil_vanfemale AS Unskilled_NiVan_Female, 
-                      ref_yearDetails.mang_formale AS Foreign_Male_Manager_Skills, 
-                      ref_yearDetails.skill_formale AS Skilled_Foreign_Male, 
-                      ref_yearDetails.unskil_formale AS Unskilled_Foreign_Male, 
-                      ref_yearDetails.mang_forfemale AS Skilled_Foreign_Male, 
-                      ref_yearDetails.skill_forfemale AS Foreign_Female_Manager_Skills, 
-                      ref_yearDetails.unskil_forfemale AS Unskilled_Foreign_Female
+                      Industry.Industry,
+                      Industry.IndustryType,
+                      ref_yearDetails.local_emp,
+                      ref_yearDetails.foreign_emp,
+                      ref_yearDetails.employee_comp
                       
                       FROM
                       
                       ref_yearDetails
                       
                       INNER JOIN reference_year ON ref_yearDetails.ref_yearDetails__id = reference_year.reference_year
+                      INNER JOIN Industry ON ref_yearDetails.id = Industry.id
                       INNER JOIN main ON ref_yearDetails.id = main.id
-                      INNER JOIN major_label_vansic on main.major_label_vansic = major_label_vansic.major_label_vansic
                       
-                      WHERE reference_year.reference_year_desc = '2021'
+                      GROUP BY Industry.id, ref_yearDetails.ref_yearDetails__id
+                      
+                      HAVING reference_year.reference_year_desc = '2021'
                       
                       ")
+dbWriteTable(mydb, "Table_9", Table_9, overwrite=TRUE)
 
 # Table 10: Total Number of Employees by skill type in 2019 and 2021 by Industry
 Table_10 <- dbGetQuery(mydb, "SELECT reference_year.reference_year_desc AS Reference_Year,
-                      major_label_vansic.major_label_vansic_desc,
+                      Industry.Industry,
+                      Industry.IndustryType,
                       ref_yearDetails.mang_vanmale, 
                       ref_yearDetails.skill_vanmale, 
                       ref_yearDetails.unskil_vanmale, 
                       ref_yearDetails.mang_vanfemale, 
-                      ref_yearDetails.skill_vanfemale, 
                       ref_yearDetails.skill_vanfemale, 
                       ref_yearDetails.unskil_vanfemale, 
                       ref_yearDetails.mang_formale, 
@@ -589,14 +645,21 @@ Table_10 <- dbGetQuery(mydb, "SELECT reference_year.reference_year_desc AS Refer
                       
                       INNER JOIN reference_year ON ref_yearDetails.ref_yearDetails__id = reference_year.reference_year
                       INNER JOIN main ON ref_yearDetails.id = main.id
-                      INNER JOIN major_label_vansic ON main.major_label_vansic = major_label_vansic.major_label_vansic
+                      INNER JOIN Industry ON ref_yearDetails.id = Industry.id
                       
-                      GROUP BY major_label_vansic.major_label_vansic
+                      GROUP BY Industry.id, ref_yearDetails.ref_yearDetails__id
+                      
                       
 ")
 
+dbWriteTable(mydb, "Table_10", Table_10, overwrite=TRUE)
+
+
 ##### Nimal's Data ####
-pilotData <- dbGetQuery(mydb, "SELECT main.name_businesEsta AS NAME,
+
+
+pilotData <- dbGetQuery(mydb, "SELECT main.id,
+main.name_businesEsta AS NAME,
                         main.busines_start_for AS YEAR,
                         main.business_locate AS ESTAB_NO,
                         area_council.area_council_desc AS LOCATION,
@@ -614,7 +677,6 @@ pilotData <- dbGetQuery(mydb, "SELECT main.name_businesEsta AS NAME,
                         INNER JOIN legal_status ON main.legal_status = legal_status.legal_status
                         INNER JOIN account_keeping ON main.account_keeping = account_keeping.account_keeping
                         
-                        GROUP BY main.name_businesEsta
                         " )
   
 #province <- read.csv("data/open/province.csv")
