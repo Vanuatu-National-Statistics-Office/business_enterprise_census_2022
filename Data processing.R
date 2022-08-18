@@ -524,7 +524,7 @@ Table_5 <- dbGetQuery(mydb, "SELECT reference_year.reference_year_desc AS Refere
                       ")
 dbWriteTable(mydb, "Table_5", Table_5, overwrite=TRUE)
 
-# Table 6: Number of Employees by Citizenship, Sex and Industry in 2019
+## Table 6: Number of Employees by Citizenship, Sex and Industry in 2019
 Table_6 <- dbGetQuery(mydb, "SELECT 
                       Industry.Industry,
                       Industry.IndustryType,
